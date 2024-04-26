@@ -11,7 +11,8 @@ import (
 )
 
 func main() {
-	run()
+
+	run(os.Args[1])
 }
 
 func copyFile(src, dest string) error {
@@ -35,17 +36,17 @@ func copyFile(src, dest string) error {
 	return nil
 }
 
-func prepare_fs_bundle() string {
+func prepare_fs_bundle(src_path string) string {
 	fs_path := "/fs_bundles/python3.12"
-	src_path := "/code_examples/helloworld.py"
+
 	dest_path := path.Join(fs_path, "code.py")
 	errorutil.Must(copyFile(src_path, dest_path), "copy source code")
 
 	return fs_path
 }
 
-func run() {
-	fs_bundle := prepare_fs_bundle()
+func run(src_path string) {
+	fs_bundle := prepare_fs_bundle(src_path)
 
 	cmd := exec.Command("./judge-py", fs_bundle)
 	cmd.Stdin = os.Stdin
