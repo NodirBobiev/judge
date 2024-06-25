@@ -1,17 +1,63 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"syscall"
 
 	"github.com/NodirBobiev/judge/internals/errorutil"
+	"github.com/NodirBobiev/judge/internals/kafka"
 )
 
 func main() {
-	run(os.Args[1])
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-signals
+		log.Println("Recieved termination signal. Graceful shutdown")
+		cancel()
+	}()
+
+	kafkaClient, err := kafka.NewKafkaClient([]string{"localhost:29092"})
+	if err != nil {
+		fmt.Printf("Failed to create Kafka client: %v\n", err)
+		return
+	}
+	defer kafkaClient.Close()
+
+	topic := "file-uploads"
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			message, err := kafkaClient.ConsumeMessageWithContext(ctx, topic)
+			if err != nil {
+				fmt.Printf("Error consuming message: %v\n", err)
+				continue
+			}
+			if message != nil {
+				// err := os.WriteFile(message.Filename, message.Content, 0644)
+				// if err != nil {
+				// 	fmt.Printf("Failed to write file: %v\n", err)
+				// 	continue
+				// }
+				fmt.Printf("File '%s' saved successfully\n", message.Filename)
+				fmt.Println(string(message.Content))
+			}
+		}
+	}
 }
 
 func copyFile(src, dest string) error {
