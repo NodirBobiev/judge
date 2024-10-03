@@ -1,9 +1,29 @@
 #!/bin/bash
 
-docker pull python:3.12-alpine
+image="python:3.12-alpine"
+container="python-temp-container"
+destdir="./fs_bundles/python3.12"
+
+docker rm $container > /dev/null 2>&1
+
+date \
 &&
-docker run -d --name python-temp-container python:3.12-alpine
+echo "⏳ pulling $image..." \
 &&
-mkdir -p ./fs_bundles/python3.12 && docker export python-temp-container | tar -x -C ./fs_bundles/python3.12
+docker pull $image \
 &&
-docker rm python-temp-container
+echo "⏳ running $container..." \
+&&
+docker run -d --name $container $image \
+&&
+echo "⏳ exporting container filesystem..." \
+&&
+mkdir -p $destdir && docker export $container | tar -x -C $destdir \
+&&
+echo "⏳ removing $container..." \
+&&
+docker rm $container \
+&&
+echo "✅done" \
+&&
+date
